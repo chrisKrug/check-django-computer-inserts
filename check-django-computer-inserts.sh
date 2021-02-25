@@ -1,8 +1,10 @@
 #!/bin/sh
 
 _timestamp_now=$(date +"%Y-%m-%d  %T")
-_timestamp_hour_ago=$(date -d '1 hour ago' +"%Y-%m-%d %T")
-#echo $_timestamp_now,$_timestamp_hour_ago
+_timestamp_hour_ago=$(date -d '1 hour ago' +"%Y-%m-%d %T") #adjust for UTC stored in database
+_utc_timestamp_now=$(date -u +"%Y-%m-%d  %T")
+_utc_timestamp_hour_ago=$(date -u -d '1 hour ago' +"%Y-%m-%d %T") #adjusted for UTC stored in database
+#echo $_timestamp_now $_timestamp_hour_ago $_utc_timestamp_now $_utc_timestamp_hour_ago
 
 _query="SELECT \
         inventory_computer.barcode_id, \
@@ -15,12 +17,12 @@ _query="SELECT \
         LEFT JOIN inventory_make ON inventory_computer.make_id=inventory_make.id \
 	LEFT JOIN auth_user ON inventory_computer.owner_id=auth_user.id \
 	LEFT JOIN inventory_type ON inventory_computer.type_id=inventory_type.id \
-        WHERE inventory_computer.added > '${_timestamp_hour_ago}'"
+        WHERE inventory_computer.added > '${_utc_timestamp_hour_ago}'"
 
 _count_query="SELECT \
         COUNT(inventory_computer.barcode_id) as count
         FROM inventory_computer \
-        WHERE inventory_computer.added > '${_timestamp_hour_ago}'"
+        WHERE inventory_computer.added > '${_utc_timestamp_hour_ago}'"
 
 _number_computers_inserted=$(mysql -u itswebappsdumper -D itswebapps -N -B -e "${_count_query}")
 
@@ -31,14 +33,15 @@ if [[ $_number_computers_inserted -gt 0 ]]; then
 	#echo records
 	for _computer in $_computers_added
 	do
- 		_barcode=$(echo $_computer | awk '{print $1}')
+ 		#echo $_computer
+		_barcode=$(echo $_computer | awk '{print $1}')
 		_serial_number=$(echo $_computer | awk '{print $2}')
 		_owner_name=$(echo $_computer | awk '{print $3}')
 		_owner_name_last=$(echo $_computer | awk '{print $4}')
 		_make=$(echo $_computer | cut -d'	' -f5- | sed 's/\t/ /g')
 		#_room=$(echo $_computer | awk '{print $5}')
-		echo $_make
-		if [[ ${_make:0:1} == "A" ]]; then # rewrite to address all cases, e.g., [[ "AEIOU" == ${_make:0:1} ]]
+		#echo $_make
+		if [[ ${_make:0:1} == "A" ]]; then
 			_article="An"
 		else
 			_article="A"
